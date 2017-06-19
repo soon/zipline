@@ -14,6 +14,7 @@
 # limitations under the License.
 import os
 from collections import OrderedDict
+from datetime import timedelta
 
 import logbook
 import pandas as pd
@@ -153,7 +154,7 @@ def load_market_data(trading_day=None, trading_days=None, bm_symbol='SPY',
 
     # We'll attempt to download new data if the latest entry in our cache is
     # before this date.
-    last_date = trading_days[trading_days.get_loc(now, method='ffill') - 2]
+    last_date = trading_days[trading_days.get_loc(now, method='ffill')]
 
     br = ensure_benchmark_data(
         bm_symbol,
@@ -172,6 +173,16 @@ def load_market_data(trading_day=None, trading_days=None, bm_symbol='SPY',
         now,
         environ,
     )
+    while tc.index[-1] < last_date:
+        new_timestamp = tc.index[-1] + timedelta(days=1)
+        new_data = pd.DataFrame(tc[-1:].values,
+                                index=[new_timestamp],
+                                columns=tc.columns)
+        tc = tc.append(new_data)
+    while br.index[-1] < last_date:
+        new_timestamp = br.index[-1] + timedelta(days=1)
+        new_data = pd.Series(br[-1], index=[new_timestamp])
+        br = br.append(new_data)
     benchmark_returns = br[br.index.slice_indexer(first_date, last_date)]
     treasury_curves = tc[tc.index.slice_indexer(first_date, last_date)]
     return benchmark_returns, treasury_curves
